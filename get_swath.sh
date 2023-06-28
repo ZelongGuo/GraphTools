@@ -13,7 +13,7 @@ if [ "$1" == "--help" ] || [ "$1" == "-help" ] || [ "$1" == "-h" ] || [ "$#" -lt
 	Get the maximum, minmum, mean values as well as the corner coordinates of a swath along a profile,
 	based on a given grid file.
 	
-	Require: GMT Software
+	Require: GMT Software > V6.1
 
     	Program:		`basename $0`
 	Written by:		Zelong Guo (GFZ, Potsdam)
