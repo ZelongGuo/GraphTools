@@ -145,8 +145,8 @@ def aftershock_density_along_profile(filename, start_point, end_point, swath_wid
 
     if plot:
         plt.scatter(all_eq[:, 0], -all_eq[:, 1])
-        plt.xlim(0,120)
-        plt.ylim(-25, 0)
+        plt.xlim(0,distance_max)
+        plt.ylim(-depth_max, 0)
         plt.xlabel('distance (km)')
         plt.ylabel('depth (km)')
         plt.show()
