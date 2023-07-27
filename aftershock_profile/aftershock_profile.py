@@ -5,6 +5,9 @@ Created on 6/27/23
 
 This script is used for getting the aftershocks density within a swath along a cross-section.
 
+Update Log:
+2023.07.27. Now we can output the accumulated M0 of all of the aftershocks per km^2
+
 @author: zelong
 """
 import matplotlib.pyplot as plt
@@ -66,7 +69,7 @@ def project_point_onto_line(point_lonlat, line_start_lonlat, line_end_lonlat):
 def aftershock_density_along_profile(filename, start_point, end_point, swath_width, distance_max=None, depth_max=None, plot=False):
     """
     filename:
-        text file of aftershocks: lon lat depth ..., if have, the comment line should start with '#'
+        text file of aftershocks: lon lat depth magnitude..., if have, the comment line should start with '#'
     start_point:
         the start point of the survey line, [lon lat], the unit should be degree
     end_point:
@@ -107,20 +110,20 @@ def aftershock_density_along_profile(filename, start_point, end_point, swath_wid
     data_point_to_start_distance = np.array(data_point_to_start_distance)
 
     # ================================ Select the points within the swath ========================================
-    # stack the lon, lat, distance_to_start_point, depth and distance_to_survey_line
-    data_point_projection = np.hstack((data_point_projection, data_point_to_start_distance.reshape((-1, 1)), data[:, 2].reshape((-1, 1)), data_point_distance.reshape((-1, 1))))
+    # stack the lon, lat, distance_to_start_point, depth, Mw and distance_to_survey_line
+    data_point_projection = np.hstack((data_point_projection, data_point_to_start_distance.reshape((-1, 1)), data[:, 2].reshape((-1, 1)), data[:, 3].reshape((-1, 1)), data_point_distance.reshape((-1, 1))))
 
     # firstly selection the points based on the longitude
     data_point_projection_select = (data_point_projection[(data_point_projection[:, 0] >= start_point[0]) &
                                                   (data_point_projection[:, 0] <= end_point[0]), :])
     # then select the points based on the distance between the points to the survey line
     distance_threshold = swath_width / 2
-    data_point_projection_select = data_point_projection_select[data_point_projection_select[:, 4] <= distance_threshold, :]
+    data_point_projection_select = data_point_projection_select[data_point_projection_select[:, 5] <= distance_threshold, :]
 
     # now we sort the array based on the distances between projection points to the start point
     data_point_projection_select = data_point_projection_select[np.argsort(data_point_projection_select[:, 2])]
 
-    all_eq = data_point_projection_select[:, 2:4]  # distance_to_start_point, depth_of_aftershocks
+    all_eq = data_point_projection_select[:, 2:5]  # distance_to_start_point, depth_of_aftershocks Mw
 
     # make statistics
     if distance_max is None:
@@ -132,23 +135,34 @@ def aftershock_density_along_profile(filename, start_point, end_point, swath_wid
     for i in range(distance_max):
         for j in range(depth_max):
             temp = all_eq[(all_eq[:, 0] >= i - 1) & (all_eq[:, 0] <= i) & (all_eq[:, 1] >= j - 1) & (all_eq[:, 1] <= j), :]
+            # k is the number of the aftershocks (aftershock density)
             k = len(temp)
-            statistics_xyz.append([i, j, k])
+            # then l is he seismic moment
+            if k == 0:
+                logm = 0
+            else:
+                # calculate the total Mw
+                total_mag = np.sum(temp, axis=0)[2]
+                # calculate the LOG of total seismic moment M0 (log(M0))
+                # Mw = (logM0 - 9.1) / 1.5
+                logm = 1.5 * total_mag + 9.1
+            statistics_xyz.append([i, j, k, logm])
 
     statistics_xyz = np.array(statistics_xyz)
 
     # write to a txt file
     filename_without_extension = os.path.splitext(os.path.basename(filename))[0]
     filename_ouput = filename_without_extension + '.xyz'
-    np.savetxt(filename_ouput, statistics_xyz, fmt='%d', header='distance(km) depth(km) density_per_km2')
+    np.savetxt(filename_ouput, statistics_xyz, fmt='%d', header='distance(km) depth(km) density_per_km2' 'log(total_M0)')
     print(f"Now the results have been written to {filename_ouput}.")
 
     if plot:
         plt.scatter(all_eq[:, 0], -all_eq[:, 1])
-        plt.xlim(0,distance_max)
+        plt.xlim(0, distance_max)
         plt.ylim(-depth_max, 0)
         plt.xlabel('distance (km)')
         plt.ylabel('depth (km)')
+        plt.title('Aftershock Distribution')
         plt.show()
 
     return data_point_projection_select, all_eq, statistics_xyz
