@@ -3,7 +3,13 @@
 # Zelong Guo, 25.06.2023
 # this script is used for calculating the stacked files and the corner coordinates of the selected swath.
 
-version="26/06/2023"
+
+# ============================================================================================
+# version and update log
+# version="26/06/2023"
+version="12/10/2023" # fixed the figure plotting bug about the direction of survey line vector
+# ============================================================================================
+
 
 if [ "$1" == "--help" ] || [ "$1" == "-help" ] || [ "$1" == "-h" ] || [ "$#" -lt "6"  ]; then
 	cat<<END && exit 1 
@@ -176,16 +182,51 @@ sed -i '1i # Distance stacked_mean_value   upper/lower 2-sigma confidence bounds
 # if you want to plot it or not:
 if [ "$plot_flag" == "y" ] || [ "$plot_flag" == "yes" ]; then
 	gmt begin $0 png
-		R1=`echo $lon0 | awk '{print $1-0.3}'`
-		R2=`echo $lat0 | awk '{print $1-0.3}'`
-		R3=`echo $lon1 | awk '{print $1+0.3}'`
-		R4=`echo $lat1 | awk '{print $1+0.3}'`
-		R=${R1}/${R3}/${R2}/${R4}
+		# R1=`echo $lon0 | awk '{print $1-0.3}'`
+		# R2=`echo $lat0 | awk '{print $1-0.3}'`
+		# R3=`echo $lon1 | awk '{print $1+0.3}'`
+		# R4=`echo $lat1 | awk '{print $1+0.3}'`
+
+		if [ $lon0 -lt $lon1 ]; then
+			R1=`echo $lon0 | awk '{print $1-0.3}'`
+			R3=`echo $lon1 | awk '{print $1+0.3}'`
+
+			if [ $lat0 -lt $lat1 ]; then
+				R2=`echo $lat0 | awk '{print $1-0.3}'`
+				R4=`echo $lat1 | awk '{print $1+0.3}'`
+				R5=$R1
+				R6=$R2
+				R=${R1}/${R3}/${R2}/${R4}
+			else
+				R2=`echo $lat0 | awk '{print $1+0.3}'`
+				R4=`echo $lat1 | awk '{print $1-0.3}'`
+				R5=$R1
+				R6=$R4
+				R=${R1}/${R3}/${R4}/${R2}
+			fi
+		else
+			R1=`echo $lon0 | awk '{print $1+0.3}'`
+			R3=`echo $lon1 | awk '{print $1-0.3}'`
+
+			if [ $lat0 -lt $lat1 ]; then
+				R2=`echo $lat0 | awk '{print $1-0.3}'`
+				R4=`echo $lat1 | awk '{print $1+0.3}'`
+				R5=$R3
+				R6=$R2
+				R=${R3}/${R1}/${R2}/${R4}
+			else
+				R2=`echo $lat0 | awk '{print $1+0.3}'`
+				R4=`echo $lat1 | awk '{print $1-0.3}'`
+				R5=$R3
+				R6=$R4
+				R=${R3}/${R1}/${R4}/${R2}
+			fi
+		fi
 
 		gmt basemap -R$R -JM7c -BSWne -Bafg0
 
 		# plot the country border and km scale
-		gmt coast -N1/0.6p,black,-- -Lg$R1/$R2+c$R1+o0.5c/0.5c+w${swathw}k+lkm
+		gmt coast -N1/0.6p,black,-- -Lg$R5/$R6+c$R5+o0.5c/0.5c+w${swathw}k+lkm
 		# plot the original line we want
 		gmt plot -W0.6p,red,solid << EOF
 		$lon0 $lat0
